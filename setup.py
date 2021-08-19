@@ -9,7 +9,7 @@ with open('README.md') as inp:
 
 setup(
     name = 'procstat',
-    version = '0.0.1',
+    version = '0.0.2',
     author = 'Gregory Petukhov',
     author_email = 'lorien@lorien.name',
     maintainer='Gregory Petukhov',
