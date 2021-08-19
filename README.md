@@ -6,7 +6,13 @@ It also can display the speed of metric is changing.
 
 It also can dump metrics into influxdb, will be documented later, see source code for details.
 
-Example of usage:
+# Installation
+
+```
+pip install -U procstat
+```
+
+# Usage
 
 ```python
 import time
