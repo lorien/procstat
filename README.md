@@ -1,4 +1,10 @@
-# procstat
+# Procstat Documentation
+
+[![Test Status](https://github.com/lorien/procstat/actions/workflows/test.yml/badge.svg)](https://github.com/lorien/procstat/actions/workflows/test.yml)
+[![Code Quality](https://github.com/lorien/procstat/actions/workflows/check.yml/badge.svg)](https://github.com/lorien/procstat/actions/workflows/test.yml)
+[![Type Check](https://github.com/lorien/procstat/actions/workflows/mypy.yml/badge.svg)](https://github.com/lorien/procstat/actions/workflows/mypy.yml)
+[![Test Coverage Status](https://coveralls.io/repos/github/lorien/procstat/badge.svg)](https://coveralls.io/github/lorien/procstat)
+[![Documentation Status](https://readthedocs.org/projects/procstat/badge/?version=latest)](http://user-agent.readthedocs.org)
 
 This library helps to count runtime metrics. For specific events you increment manually the
 corresponding counters. By default the library dumps all counters into stderr each 3 seconds.
@@ -8,7 +14,7 @@ It also can dump metrics into influxdb, will be documented later, see source cod
 
 # Installation
 
-```
+```shell
 pip install -U procstat
 ```
 
