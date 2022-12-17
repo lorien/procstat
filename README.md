@@ -1,8 +1,8 @@
 # Procstat Documentation
 
-[![Test Status](https://github.com/lorien/procstat/actions/workflows/test.yml/badge.svg)](https://github.com/lorien/procstat/actions/workflows/test.yml)
-[![Code Quality](https://github.com/lorien/procstat/actions/workflows/check.yml/badge.svg)](https://github.com/lorien/procstat/actions/workflows/test.yml)
-[![Type Check](https://github.com/lorien/procstat/actions/workflows/mypy.yml/badge.svg)](https://github.com/lorien/procstat/actions/workflows/mypy.yml)
+[![Tests Status](https://github.com/lorien/procstat/actions/workflows/test.yml/badge.svg)](https://github.com/lorien/procstat/actions/workflows/test.yml)
+[![Code Quality Status](https://github.com/lorien/procstat/actions/workflows/check.yml/badge.svg)](https://github.com/lorien/procstat/actions/workflows/test.yml)
+[![Types Check Status](https://github.com/lorien/procstat/actions/workflows/mypy.yml/badge.svg)](https://github.com/lorien/procstat/actions/workflows/mypy.yml)
 [![Test Coverage Status](https://coveralls.io/repos/github/lorien/procstat/badge.svg)](https://coveralls.io/github/lorien/procstat)
 [![Documentation Status](https://readthedocs.org/projects/procstat/badge/?version=latest)](http://user-agent.readthedocs.org)
 
