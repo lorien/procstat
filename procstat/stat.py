@@ -4,8 +4,8 @@ import json
 import logging
 import sys
 import time
-from collections import defaultdict
 from collections.abc import Mapping, MutableMapping, Sequence
+from contextlib import suppress
 from copy import deepcopy
 from pprint import pprint  # pylint: disable=unused-import
 from queue import Queue
@@ -17,6 +17,9 @@ from .base import BaseExportDriver
 logger = logging.getLogger("procstat")
 
 
+__all__ = ["Stat"]
+
+
 class Stat:  # pylint: disable=too-many-instance-attributes
     default_key_aliases: Mapping[str, str] = {}
     ignore_prefixes: list[str] = []
@@ -24,7 +27,7 @@ class Stat:  # pylint: disable=too-many-instance-attributes
     def __init__(  # pylint: disable=too-many-arguments
         self,
         # logging
-        speed_keys: None | str | Sequence[str] = None,
+        eps_keys: None | str | Sequence[str] = None,
         logging_enabled: bool = True,
         logging_interval: int = 3,
         logging_format: str = "text",
@@ -37,12 +40,12 @@ class Stat:  # pylint: disable=too-many-instance-attributes
         # fatalq
         fatalq: None | Queue[Any] = None,
     ):
-        # Arg: speed_keys
-        if speed_keys is None:
-            speed_keys = []
-        elif isinstance(speed_keys, str):
-            speed_keys = [speed_keys]
-        self.speed_keys = speed_keys
+        # Arg: eps_keys
+        if eps_keys is None:
+            eps_keys = []
+        elif isinstance(eps_keys, str):
+            eps_keys = [eps_keys]
+        self.eps_keys = eps_keys
         # Arg: logging_enabled
         self.logging_enabled = logging_enabled
         # Arg: logging_interval
@@ -63,7 +66,7 @@ class Stat:  # pylint: disable=too-many-instance-attributes
         # self.shard_interval = shard_interval
 
         # Logging
-        self.total_counters: MutableMapping[str, int] = defaultdict(int)
+        self.counters: MutableMapping[str, int] = {}
         self.moment_counters: MutableMapping[int, MutableMapping[str, int]] = {}
         self.logging_time = 0
         if self.logging_enabled:
@@ -107,13 +110,12 @@ class Stat:  # pylint: disable=too-many-instance-attributes
             mean value calculation
         """
         now_int = int(now)
-        eps: MutableMapping[str, int] = defaultdict(int)
+        eps: MutableMapping[str, int] = {}
         for ts in range(now_int - interval, now_int):
-            for key in sorted(self.speed_keys):
-                try:
+            for key in sorted(self.eps_keys):
+                eps.setdefault(key, 0)
+                with suppress(KeyError):
                     eps[key] += self.moment_counters[ts][key]
-                except KeyError:
-                    eps[key] += 0
         return eps
 
     def build_eps_string(self, now: float) -> str:
@@ -132,7 +134,7 @@ class Stat:  # pylint: disable=too-many-instance-attributes
     def build_counter_data(self) -> Mapping[str, int]:
         return {
             key: val
-            for key, val in self.total_counters.items()
+            for key, val in self.counters.items()
             if not key.startswith(tuple(self.ignore_prefixes))
         }
 
@@ -142,7 +144,7 @@ class Stat:  # pylint: disable=too-many-instance-attributes
         for key in sorted(data.keys()):
             label = self.key_aliases.get(key, key)
             val = data[key]
-            ret.append("%s: %d" % (label, val))
+            ret.append("%s=%d" % (label, val))
         return ", ".join(ret)
 
     def render_moment_json(self, now: float) -> str:
@@ -161,7 +163,8 @@ class Stat:  # pylint: disable=too-many-instance-attributes
             return self.render_moment_json(now)
         eps_str = self.build_eps_string(now)
         counter_str = self.build_counter_string()
-        return "EPS: %s | TOTAL: %s" % (eps_str, counter_str)
+        delim = " " if eps_str else ""
+        return "EPS: %s%s| TOTAL: %s" % (eps_str, delim, counter_str)
 
     def thread_logging(self) -> None:
         try:
@@ -185,7 +188,7 @@ class Stat:  # pylint: disable=too-many-instance-attributes
     def th_export_dump_stat(self) -> None:
         assert self.export_driver is not None
         with self.th_export_lock:
-            counters = deepcopy(self.total_counters)
+            counters = deepcopy(self.counters)
             delta_counters = (
                 self.calc_diff(counters, self.export_prev_counters)
                 if self.export_prev_counters
@@ -210,12 +213,13 @@ class Stat:  # pylint: disable=too-many-instance-attributes
         finally:
             self.th_export_dump_stat()
 
-    def inc(self, key: str, count: int = 1) -> None:
-        now_int = int(time.time())
-        # shard_ts = now_int - now_int % self.shard_interval
-        # shard_slot = self.shard_counters.setdefault(shard_ts, defaultdict(int))
-        moment_slot = self.moment_counters.setdefault(now_int, defaultdict(int))
-
+    def update_moment_slot(self, key: str, count: int) -> None:
+        # FIXME: delete old moment_counters items
+        moment_slot = self.moment_counters.setdefault(int(time.time()), {})
+        moment_slot.setdefault(key, 0)
         moment_slot[key] += count
-        # shard_slot[key] += count
-        self.total_counters[key] += count
+
+    def inc(self, key: str, count: int = 1) -> None:
+        self.update_moment_slot(key, count)
+        self.counters.setdefault(key, 0)
+        self.counters[key] += count

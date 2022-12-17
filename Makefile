@@ -22,7 +22,7 @@ clean:
 	find -name '__pycache__' -delete
 
 test:
-	pytest --cov test_server --cov-report term-missing
+	pytest --cov procstat --cov-report term-missing
 
 release:
 	git push \
