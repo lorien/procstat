@@ -9,7 +9,7 @@ from contextlib import suppress
 from copy import deepcopy
 from pprint import pprint  # pylint: disable=unused-import
 from queue import Queue
-from threading import Lock, Thread
+from threading import Event, Lock, Thread
 from typing import Any
 
 from .base import BaseExportDriver
@@ -26,65 +26,53 @@ class Stat:  # pylint: disable=too-many-instance-attributes
 
     def __init__(  # pylint: disable=too-many-arguments
         self,
-        # logging
         eps_keys: None | str | Sequence[str] = None,
         logging_enabled: bool = True,
         logging_interval: int = 3,
         logging_format: str = "text",
-        logging_level: int = logging.DEBUG,
+        logging_level: int = logging.ERROR,
         key_aliases: None | Mapping[str, str] = None,
-        # export
-        # shard_interval = 10,
         export_driver: None | BaseExportDriver = None,
         export_interval: int = 5,
-        # fatalq
         fatalq: None | Queue[Any] = None,
+        evt_shutdown: None | Event = None,
     ):
-        # Arg: eps_keys
         if eps_keys is None:
             eps_keys = []
         elif isinstance(eps_keys, str):
             eps_keys = [eps_keys]
         self.eps_keys = eps_keys
-        # Arg: logging_enabled
         self.logging_enabled = logging_enabled
-        # Arg: logging_interval
         self.logging_interval = logging_interval
-        # Arg: logging_format
         self.logging_format = logging_format
-        # Arg: logging_level
         self.logging_level = logging_level
-        # Arg: key_aliases
         self.key_aliases = dict(self.default_key_aliases)
         if key_aliases:
             self.key_aliases.update(key_aliases)
 
-        # Arg: fatalq
         self.fatalq = fatalq
-
-        # Arg: shard_interval
-        # self.shard_interval = shard_interval
+        # If shutdown event is not defined
+        # then just use own event which can never be set
+        self.evt_shutdown = evt_shutdown or Event()
 
         # Logging
         self.counters: MutableMapping[str, int] = {}
         self.moment_counters: MutableMapping[int, MutableMapping[str, int]] = {}
         self.logging_time = 0
+        self.th_logging: None | Thread = None
         if self.logging_enabled:
             self.th_logging = Thread(target=self.thread_logging)
             self.th_logging.daemon = True
             self.th_logging.start()
 
         # Setup exporting in last case
-        # Arg: export
         self.th_export: None | Thread = None
         self.export_driver = export_driver
         self.export_prev_counters: None | Mapping[str, int] = None
         self.th_export_lock = Lock()
 
-        # Args: export_interval
         self.export_interval = export_interval
 
-        # Export
         # self.shard_counters = {}
         if self.export_driver:
             self.start_export_thread()
@@ -168,7 +156,7 @@ class Stat:  # pylint: disable=too-many-instance-attributes
 
     def thread_logging(self) -> None:
         try:
-            while True:
+            while not self.evt_shutdown.is_set():
                 now = time.time()
                 logger.log(self.logging_level, self.render_moment(now))
                 # Sleep `self.logging_interval` seconds minus time spent on logging
@@ -223,3 +211,8 @@ class Stat:  # pylint: disable=too-many-instance-attributes
         self.update_moment_slot(key, count)
         self.counters.setdefault(key, 0)
         self.counters[key] += count
+
+    def shutdown(self, join_threads: bool = True) -> None:
+        self.evt_shutdown.set()
+        if join_threads and self.th_logging:
+            self.th_logging.join()

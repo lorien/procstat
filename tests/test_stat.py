@@ -1,3 +1,6 @@
+import time
+from threading import Event
+
 from procstat.stat import Stat
 
 
@@ -26,3 +29,30 @@ def test_render_moment():
     stat = Stat()
     stat.inc("foo")
     assert stat.render_moment() == "EPS: | TOTAL: foo=1"
+
+
+def test_external_event_shutdown_logging_thread():
+    evt_shutdown = Event()
+    stat = Stat(evt_shutdown=evt_shutdown, logging_interval=0.1)
+    time.sleep(0.1)
+    assert stat.th_logging.is_alive()
+    evt_shutdown.set()
+    time.sleep(0.2)
+    assert not stat.th_logging.is_alive()
+
+
+def test_internal_event_shutdown_logging_thread():
+    stat = Stat(logging_interval=0.1)
+    time.sleep(0.1)
+    assert stat.th_logging.is_alive()
+    stat.shutdown(join_threads=False)
+    time.sleep(0.2)
+    assert not stat.th_logging.is_alive()
+
+
+def test_internal_event_shutdown_logging_thread_join_threads():
+    stat = Stat(logging_interval=0.1)
+    time.sleep(0.1)
+    assert stat.th_logging.is_alive()
+    stat.shutdown(join_threads=True)
+    assert not stat.th_logging.is_alive()
