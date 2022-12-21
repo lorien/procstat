@@ -161,7 +161,7 @@ class Stat:  # pylint: disable=too-many-instance-attributes
                 logger.log(self.logging_level, self.render_moment(now))
                 # Sleep `self.logging_interval` seconds minus time spent on logging
                 sleep_time = self.logging_interval + (time.time() - now)
-                time.sleep(sleep_time)
+                self.evt_shutdown.wait(sleep_time)
         except (KeyboardInterrupt, Exception):
             if self.fatalq:
                 self.fatalq.put((sys.exc_info(), None))
