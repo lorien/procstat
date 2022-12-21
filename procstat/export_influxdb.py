@@ -10,12 +10,12 @@ from influxdb_client.client.exceptions import InfluxDBError
 from influxdb_client.client.write_api import SYNCHRONOUS
 from requests import RequestException
 
-from .base import BaseInfluxdbExportDriver
+from .base import BaseExportDriver
 
 LOG = logging.getLogger(__file__)
 
 
-class InfluxdbExportDriver(BaseInfluxdbExportDriver):
+class InfluxdbExportDriver(BaseExportDriver):
     retry_exceptions = (
         OSError,
         RequestException,

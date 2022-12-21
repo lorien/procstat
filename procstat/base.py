@@ -12,22 +12,6 @@ LOG = logging.getLogger()
 
 class BaseExportDriver:
     default_measurement_name = "event"
-
-    @abstractmethod
-    def connect(self) -> None:
-        raise NotImplementedError
-
-    @abstractmethod
-    def write_events(
-        self,
-        snapshot: Mapping[str, int | float | str],
-        measurement: None | str = None,
-        tags: None | Mapping[str, str | int | float] = None,
-    ) -> None:
-        raise NotImplementedError
-
-
-class BaseInfluxdbExportDriver(BaseExportDriver):
     reconnect_interval_sec: float = 1
     retry_exceptions: tuple[type[Exception], ...] = ()
 

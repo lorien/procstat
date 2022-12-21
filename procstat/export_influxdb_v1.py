@@ -8,12 +8,12 @@ from influxdb import InfluxDBClient
 from influxdb.exceptions import InfluxDBClientError, InfluxDBServerError
 from requests import RequestException
 
-from .base import BaseInfluxdbExportDriver
+from .base import BaseExportDriver
 
 LOG = logging.getLogger(__file__)
 
 
-class InfluxdbV1ExportDriver(BaseInfluxdbExportDriver):
+class InfluxdbV1ExportDriver(BaseExportDriver):
     retry_exceptions = (
         OSError,
         RequestException,
