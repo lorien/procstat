@@ -20,9 +20,9 @@ jobs:
 
     - name: Install dependencies
       run: |
-        pip install -U -r requirements.txt
+        pip install -U -r requirements_dev.txt
         pip install -U -e .
 
     - name: Run tests
       run: |
-        make pylint && make flake8 && make bandit
+        make ruff && make pylint && make bandit
