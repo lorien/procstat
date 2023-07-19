@@ -1,15 +1,17 @@
-.PHONY: bootstrap venv deps dirs clean test release mypy pylint flake8 bandit check build coverage
+.PHONY: init venv deps dirs clean test release mypy pylint ruff flake8 bandit check build coverage
 
-FILES_CHECK_MYPY = procstat
-FILES_CHECK_ALL = $(FILES_CHECK_MYPY) tests
+FILES_CHECK_MYPY = procstat tests
+FILES_CHECK_ALL = $(FILES_CHECK_MYPY)
+COVERAGE_TARGET = procstat
 
-bootstrap: venv deps dirs
+init: venv deps dirs
 
 venv:
 	virtualenv -p python3 .env
 
 deps:
-	.env/bin/pip install -r requirements.txt
+	.env/bin/pip install -U pip
+	.env/bin/pip install -r requirements_dev.txt
 	.env/bin/pip install -e .
 
 dirs:
@@ -22,10 +24,10 @@ clean:
 	find -name '__pycache__' -delete
 
 pytest:
-	pytest --cov procstat --cov-report term-missing
+	pytest -n30 -x --cov $(COVERAGE_TARGET) --cov-report term-missing
 
 test: check pytest
-	tox -e py38-check
+	tox -e check-minver
 
 release:
 	git push \
@@ -39,13 +41,13 @@ mypy:
 pylint:
 	pylint -j0 $(FILES_CHECK_ALL)
 
-flake8:
-	flake8 -j auto --max-cognitive-complexity=11 $(FILES_CHECK_ALL)
+ruff:
+	ruff $(FILES_CHECK_ALL)
 
 bandit:
 	bandit -qc pyproject.toml -r $(FILES_CHECK_ALL)
 
-check: mypy pylint flake8 bandit
+check: ruff mypy pylint flake8 bandit
 
 build:
 	rm -rf *.egg-info
@@ -53,4 +55,4 @@ build:
 	python -m build --sdist
 
 coverage:
-	pytest --cov selection --cov-report term-missing
+	pytest --cov $(COVERAGE_TARGET) --cov-report term-missing

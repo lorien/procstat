@@ -16,3 +16,4 @@
 /test.py
 /.coverage
 /.tox/
+/build/

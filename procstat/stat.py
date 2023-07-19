@@ -7,7 +7,7 @@ import time
 from collections.abc import Mapping, MutableMapping, Sequence
 from contextlib import suppress
 from copy import deepcopy
-from pprint import pprint  # pylint: disable=unused-import
+from pprint import pprint  # pylint: disable=unused-import # noqa: F401
 from queue import Queue
 from threading import Event, Lock, Thread
 from typing import Any
@@ -28,7 +28,7 @@ class Stat:  # pylint: disable=too-many-instance-attributes
         self,
         eps_keys: None | str | Sequence[str] = None,
         logging_enabled: bool = True,
-        logging_interval: int = 3,
+        logging_interval: int | float = 3,
         logging_format: str = "text",
         logging_level: int = logging.ERROR,
         key_aliases: None | Mapping[str, str] = None,
@@ -81,7 +81,7 @@ class Stat:  # pylint: disable=too-many-instance-attributes
         if self.th_export:
             logging.error("Export thread is already started.")
         if not self.export_driver:
-            raise Exception("Export drivers is not set")
+            raise ValueError("Export driver is not set")
         self.th_export = Thread(target=self.thread_export)
         self.th_export.daemon = True
         self.th_export.start()
