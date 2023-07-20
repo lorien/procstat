@@ -14,7 +14,6 @@ influxdb_client
 urllib3
 
 # Types
-types-requests
 
 # Code Quality
 bandit[toml]
