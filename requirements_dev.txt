@@ -11,6 +11,7 @@ coveralls
 pytest-cov
 influxdb
 influxdb_client
+urllib3
 
 # Types
 types-requests

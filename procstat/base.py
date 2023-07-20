@@ -11,9 +11,19 @@ LOG = logging.getLogger()
 
 
 class BaseExportDriver:
-    default_measurement_name = "event"
     reconnect_interval_sec: float = 1
     retry_exceptions: tuple[type[Exception], ...] = ()
+
+    def __init__(
+        self,
+        tags: None | Mapping[str, Any] = None,
+        raise_on_error: bool = False,
+    ) -> None:
+        self.client = None
+        self.tags = deepcopy(tags or {})
+        self.database_created = False
+        self.raise_on_error = raise_on_error
+        self.connect()
 
     @abstractmethod
     def driver_connect(self) -> None:
@@ -23,25 +33,9 @@ class BaseExportDriver:
     def driver_write_events(
         self,
         snapshot: Mapping[str, int | float | str],
-        measurement: str,
         tags: Mapping[str, str | int | float],
     ) -> None:
         raise NotImplementedError
-
-    def __init__(
-        self,
-        connect_options: Mapping[str, Any],
-        tags: None | Mapping[str, Any] = None,
-        measurement: None | str = None,
-    ) -> None:
-        self.connect_options = deepcopy(connect_options)
-        self.client = None
-        self.default_measurement = (
-            measurement if measurement else self.default_measurement_name
-        )
-        self.tags = deepcopy(tags or {})
-        self.database_created = False
-        self.connect()
 
     def connect(self) -> None:
         self.driver_connect()
@@ -59,19 +53,16 @@ class BaseExportDriver:
     def write_events(
         self,
         snapshot: Mapping[str, int | float | str],
-        measurement: None | str = None,
         tags: None | Mapping[str, str | int | float] = None,
     ) -> None:
         if not snapshot:
             return
         proc_tags = {**self.tags, **tags} if tags else self.tags
-        proc_measurement = measurement or self.default_measurement_name
         try:
             while True:
                 try:
                     self.driver_write_events(
                         snapshot=snapshot,
-                        measurement=proc_measurement,
                         tags=proc_tags,
                     )
                 except self.retry_exceptions:
@@ -81,4 +72,5 @@ class BaseExportDriver:
                     break
         except Exception:
             LOG.exception("ERROR IN STAT WRITE EVENTS")
-            raise
+            if self.raise_on_error:
+                raise

@@ -22,9 +22,14 @@ class InfluxdbExportDriver(BaseExportDriver):
         InfluxDBError,
     )
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        connect_options: Mapping[str, Any],
+        tags: None | Mapping[str, Any] = None,
+    ) -> None:
+        super().__init__(tags=tags)
         self.write_api: None | WriteApi = None
+        self.connect_options = connect_options
 
     def driver_connect(self) -> None:
         self.client = InfluxDBClient(**self.connect_options)
@@ -34,13 +39,12 @@ class InfluxdbExportDriver(BaseExportDriver):
     def driver_write_events(
         self,
         snapshot: Mapping[str, int | float | str],
-        measurement: str,
         tags: Mapping[str, str | int | float],
     ) -> None:
-        point = Point(measurement).time(datetime.utcnow())
-        for key, val in tags.items():
-            point.tag(key, val)
-        for key, val in snapshot.items():
-            point.field(key, val)
-        assert self.write_api is not None
-        self.write_api.write(bucket=self.connect_options["bucket"], record=point)
+        for field_key, field_val in snapshot.items():
+            point = Point(field_key).time(datetime.utcnow())
+            point.field("value", field_val)
+            for key, val in tags.items():
+                point.tag(key, val)
+            assert self.write_api is not None
+            self.write_api.write(bucket=self.connect_options["bucket"], record=point)
