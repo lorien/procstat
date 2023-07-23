@@ -5,10 +5,12 @@ import time
 from collections.abc import Mapping
 from typing import Any
 
+from rich.pretty import pprint  # pylint: disable=unused-import # noqa: F401
 from urllib3 import PoolManager, make_headers
 
 from .base import BaseExportDriver
 
+DEFAULT_NETWORK_TIMEOUT = 3
 LOG = logging.getLogger(__file__)
 
 
@@ -57,6 +59,7 @@ class PrometheusExportDriver(BaseExportDriver):
             self.export_url,
             headers=self.headers,
             body=b"\n".join(items),
+            timeout=DEFAULT_NETWORK_TIMEOUT,
         )
         if res.status != 204:
             LOG.error(

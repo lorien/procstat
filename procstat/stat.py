@@ -4,8 +4,8 @@ import json
 import logging
 import sys
 import time
-from collections.abc import Mapping, MutableMapping, Sequence
-from contextlib import suppress
+from collections.abc import Iterator
+from contextlib import contextmanager, suppress
 from copy import deepcopy
 from pprint import pprint  # pylint: disable=unused-import # noqa: F401
 from queue import Queue
