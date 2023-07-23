@@ -14,26 +14,28 @@ from typing import Any
 
 from .base import BaseExportDriver
 
-logger = logging.getLogger("procstat")
+LOG = logging.getLogger("procstat")
+DEFAULT_LOGGING_INTERVAL = 15
+DEFAULT_EXPORT_INTERVAL = 15
 
 
 __all__ = ["Stat"]
 
 
 class Stat:  # pylint: disable=too-many-instance-attributes
-    default_key_aliases: Mapping[str, str] = {}
+    default_key_aliases: dict[str, str] = {}
     ignore_prefixes: list[str] = []
 
     def __init__(  # pylint: disable=too-many-arguments
         self,
-        eps_keys: None | str | Sequence[str] = None,
+        eps_keys: None | str | list[str] = None,
         logging_enabled: bool = True,
-        logging_interval: int | float = 3,
+        logging_interval: int | float = DEFAULT_LOGGING_INTERVAL,
         logging_format: str = "text",
         logging_level: int = logging.ERROR,
-        key_aliases: None | Mapping[str, str] = None,
+        key_aliases: None | dict[str, str] = None,
         export_driver: None | BaseExportDriver = None,
-        export_interval: int = 5,
+        export_interval: int = DEFAULT_EXPORT_INTERVAL,
         fatalq: None | Queue[Any] = None,
         evt_shutdown: None | Event = None,
     ):
@@ -56,8 +58,8 @@ class Stat:  # pylint: disable=too-many-instance-attributes
         self.evt_shutdown = evt_shutdown or Event()
 
         # Logging
-        self.counters: MutableMapping[str, int] = {}
-        self.moment_counters: MutableMapping[int, MutableMapping[str, int]] = {}
+        self.counters: dict[str, int | float] = {}
+        self.moment_counters: dict[int, dict[str, int | float]] = {}
         self.logging_time = 0
         self.th_logging: None | Thread = None
         if self.logging_enabled:
@@ -68,7 +70,7 @@ class Stat:  # pylint: disable=too-many-instance-attributes
         # Setup exporting in last case
         self.th_export: None | Thread = None
         self.export_driver = export_driver
-        self.export_prev_counters: None | Mapping[str, int] = None
+        self.export_prev_counters: None | dict[str, int | float] = None
         self.th_export_lock = Lock()
 
         self.export_interval = export_interval
@@ -90,7 +92,7 @@ class Stat:  # pylint: disable=too-many-instance-attributes
         self.service_time = 0
         self.service_interval = 1
 
-    def build_eps_data(self, now: float, interval: int) -> Mapping[str, int]:
+    def build_eps_data(self, now: float, interval: int) -> dict[str, int | float]:
         """Build string with event per seconds statistics.
 
         Args:
@@ -98,7 +100,7 @@ class Stat:  # pylint: disable=too-many-instance-attributes
             mean value calculation
         """
         now_int = int(now)
-        eps: MutableMapping[str, int] = {}
+        eps: dict[str, int | float] = {}
         for ts in range(now_int - interval, now_int):
             for key in sorted(self.eps_keys):
                 eps.setdefault(key, 0)
@@ -119,7 +121,7 @@ class Stat:  # pylint: disable=too-many-instance-attributes
         ret = sorted(ret, key=lambda x: x[0])
         return ", ".join(ret)
 
-    def build_counter_data(self) -> Mapping[str, int]:
+    def build_counter_data(self) -> dict[str, int | float]:
         return {
             key: val
             for key, val in self.counters.items()
@@ -154,25 +156,6 @@ class Stat:  # pylint: disable=too-many-instance-attributes
         delim = " " if eps_str else ""
         return "EPS: %s%s| TOTAL: %s" % (eps_str, delim, counter_str)
 
-    def thread_logging(self) -> None:
-        try:
-            while not self.evt_shutdown.is_set():
-                now = time.time()
-                logger.log(self.logging_level, self.render_moment(now))
-                # Sleep `self.logging_interval` seconds minus time spent on logging
-                sleep_time = self.logging_interval + (time.time() - now)
-                self.evt_shutdown.wait(sleep_time)
-        except (KeyboardInterrupt, Exception):
-            if self.fatalq:
-                self.fatalq.put((sys.exc_info(), None))
-            else:
-                raise
-
-    def calc_diff(
-        self, counters: Mapping[str, int], prev_counters: Mapping[str, int]
-    ) -> Mapping[str, int]:
-        return {x: (counters[x] - prev_counters.get(x, 0)) for x in counters}
-
     def th_export_dump_stat(self) -> None:
         assert self.export_driver is not None
         with self.th_export_lock:
@@ -183,16 +166,23 @@ class Stat:  # pylint: disable=too-many-instance-attributes
                 else counters
             )
             self.export_prev_counters = counters
-        self.export_driver.write_events(delta_counters)
+        if delta_counters:
+            res = self.export_driver.write_events(delta_counters)
+            self.inc("stat:export:ok" if res else "stat:export:fail")
+
+    def th_logging_dump_stat(self, now: None | float = None) -> None:
+        if now is None:
+            now = time.time()
+        LOG.log(self.logging_level, self.render_moment(now))
 
     def thread_export(self) -> None:
         try:
-            while True:
-                ts = time.time()
+            while not self.evt_shutdown.is_set():
+                now = time.time()
                 self.th_export_dump_stat()
-                sleep_time = self.export_interval - (time.time() - ts)
+                sleep_time = self.export_interval - (time.time() - now)
                 if sleep_time > 0:
-                    time.sleep(sleep_time)
+                    self.evt_shutdown.wait(sleep_time)
         except (KeyboardInterrupt, Exception):
             if self.fatalq:
                 self.fatalq.put((sys.exc_info(), None))
@@ -201,18 +191,56 @@ class Stat:  # pylint: disable=too-many-instance-attributes
         finally:
             self.th_export_dump_stat()
 
-    def update_moment_slot(self, key: str, count: int) -> None:
+    def thread_logging(self) -> None:
+        try:
+            while not self.evt_shutdown.is_set():
+                now = time.time()
+                # Sleep `self.logging_interval` seconds minus time spent on logging
+                sleep_time = self.logging_interval + (time.time() - now)
+                if sleep_time:
+                    self.evt_shutdown.wait(sleep_time)
+                self.th_logging_dump_stat(now)
+        except (KeyboardInterrupt, Exception):
+            if self.fatalq:
+                self.fatalq.put((sys.exc_info(), None))
+            else:
+                raise
+        finally:
+            self.th_logging_dump_stat(now)
+
+    def calc_diff(
+        self, counters: dict[str, int | float], prev_counters: dict[str, int | float]
+    ) -> dict[str, int | float]:
+        return {x: (counters[x] - prev_counters.get(x, 0)) for x in counters}
+
+    def update_moment_slot(self, key: str, count: int | float) -> None:
         # FIXME: delete old moment_counters items
-        moment_slot = self.moment_counters.setdefault(int(time.time()), {})
+        moment_slot: dict[str, int | float] = self.moment_counters.setdefault(
+            int(time.time()), {}
+        )
         moment_slot.setdefault(key, 0)
         moment_slot[key] += count
 
-    def inc(self, key: str, count: int = 1) -> None:
+    def inc(self, key: str, count: int | float = 1) -> None:
         self.update_moment_slot(key, count)
         self.counters.setdefault(key, 0)
         self.counters[key] += count
 
     def shutdown(self, join_threads: bool = True) -> None:
         self.evt_shutdown.set()
-        if join_threads and self.th_logging:
-            self.th_logging.join()
+        if join_threads:
+            for th in (self.th_logging, self.th_export):
+                if th:
+                    th.join()
+
+    @contextmanager
+    def wrap(self) -> Iterator[None]:
+        yield
+        self.shutdown()
+
+    @contextmanager
+    def measure_time(self, key: str) -> Iterator[None]:
+        start = time.time()
+        yield
+        self.inc(key, time.time() - start)
+        self.inc("{}:count".format(key), 1)
