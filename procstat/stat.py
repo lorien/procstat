@@ -26,7 +26,7 @@ class Stat:  # pylint: disable=too-many-instance-attributes
     default_key_aliases: dict[str, str] = {}
     ignore_prefixes: list[str] = []
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(  # pylint: disable=too-many-arguments # noqa: PLR0913
         self,
         eps_keys: None | str | list[str] = None,
         logging_enabled: bool = True,
@@ -38,7 +38,7 @@ class Stat:  # pylint: disable=too-many-instance-attributes
         export_interval: int = DEFAULT_EXPORT_INTERVAL,
         fatalq: None | Queue[Any] = None,
         evt_shutdown: None | Event = None,
-    ):
+    ) -> None:
         if eps_keys is None:
             eps_keys = []
         elif isinstance(eps_keys, str):
@@ -95,9 +95,7 @@ class Stat:  # pylint: disable=too-many-instance-attributes
     def build_eps_data(self, now: float, interval: int) -> dict[str, int | float]:
         """Build string with event per seconds statistics.
 
-        Args:
-            interval - number of recent seconds for
-            mean value calculation
+        interval -- number of recent seconds for mean value calculation
         """
         now_int = int(now)
         eps: dict[str, int | float] = {}
@@ -117,7 +115,7 @@ class Stat:  # pylint: disable=too-many-instance-attributes
             val_str = "%.1f" % (val / interval)
             if val_str == "0.0" and val > 0:
                 val_str = "0.0+"
-            ret.append("%s: %s" % (label, val_str))
+            ret.append("{}: {}".format(label, val_str))
         ret = sorted(ret, key=lambda x: x[0])
         return ", ".join(ret)
 
@@ -154,7 +152,7 @@ class Stat:  # pylint: disable=too-many-instance-attributes
         eps_str = self.build_eps_string(now)
         counter_str = self.build_counter_string()
         delim = " " if eps_str else ""
-        return "EPS: %s%s| TOTAL: %s" % (eps_str, delim, counter_str)
+        return "EPS: {}{}| TOTAL: {}".format(eps_str, delim, counter_str)
 
     def th_export_dump_stat(self) -> None:
         assert self.export_driver is not None
@@ -214,7 +212,7 @@ class Stat:  # pylint: disable=too-many-instance-attributes
         return {x: (counters[x] - prev_counters.get(x, 0)) for x in counters}
 
     def update_moment_slot(self, key: str, count: int | float) -> None:
-        # FIXME: delete old moment_counters items
+        # TODO: delete old moment_counters items
         moment_slot: dict[str, int | float] = self.moment_counters.setdefault(
             int(time.time()), {}
         )

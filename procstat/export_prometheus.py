@@ -10,6 +10,7 @@ from urllib3 import PoolManager, make_headers
 
 from .base import BaseExportDriver
 
+HTTP_STATUS_NO_CONTENT = 204
 DEFAULT_NETWORK_TIMEOUT = 3
 LOG = logging.getLogger(__file__)
 
@@ -61,7 +62,7 @@ class PrometheusExportDriver(BaseExportDriver):
             body=b"\n".join(items),
             timeout=DEFAULT_NETWORK_TIMEOUT,
         )
-        if res.status != 204:
+        if res.status != HTTP_STATUS_NO_CONTENT:
             LOG.error(
                 "Failed to write data to %s, response status is %s",
                 self.export_url,

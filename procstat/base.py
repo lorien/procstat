@@ -76,7 +76,6 @@ class BaseExportDriver:
                 snapshot=snapshot,
                 tags=proc_tags,
             )
-            return True
             #    except self.retry_exceptions:
             #        LOG.exception("Failed to write metrics")
             #        self.repair_connection()
@@ -87,3 +86,4 @@ class BaseExportDriver:
             if self.raise_on_error:
                 raise
             return False
+        return True
