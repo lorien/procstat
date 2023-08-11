@@ -1,4 +1,4 @@
-.PHONY: init venv deps dirs clean test release mypy pylint ruff flake8 bandit check build coverage
+.PHONY: init venv deps dirs clean test release mypy pylint ruff bandit check build coverage
 
 FILES_CHECK_MYPY = procstat tests
 FILES_CHECK_ALL = $(FILES_CHECK_MYPY)
@@ -47,7 +47,7 @@ ruff:
 bandit:
 	bandit -qc pyproject.toml -r $(FILES_CHECK_ALL)
 
-check: ruff mypy pylint flake8 bandit
+check: ruff mypy pylint bandit
 
 build:
 	rm -rf *.egg-info
