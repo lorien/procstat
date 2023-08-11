@@ -1,7 +1,7 @@
 [project]
 
 name = "procstat"
-version = "0.0.7"
+version = "0.0.8"
 description = "Tool to count runtime metrics"
 readme = "README.md"
 requires-python = ">=3.8"
